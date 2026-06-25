@@ -163,87 +163,101 @@ def main():
         doc1_clauses = st.session_state.doc1_clauses
         doc2_clauses = st.session_state.doc2_clauses
 
-        # Summary cards
+        # ---- Build categories using the fixed function ----
+        exact, partial, unique = categorize_results(results, doc1_clauses, doc2_clauses)
+
+        total_clauses = results['total_doc1'] + results['total_doc2']
+        total_matched = len(exact) + len(partial)
+        unique_doc1 = sum(1 for u in unique if u['document'] == 'Document 1')
+        unique_doc2 = sum(1 for u in unique if u['document'] == 'Document 2')
+
+        # ---- Summary metrics ----
         c1, c2, c3, c4 = st.columns(4)
         with c1:
             st.markdown(f"""
                 <div class="stats-card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
-                    <h3>{results['total_doc1'] + results['total_doc2']}</h3>
+                    <h3>{total_clauses}</h3>
                     <p>Total Clauses</p>
                 </div>
             """, unsafe_allow_html=True)
         with c2:
             st.markdown(f"""
                 <div class="stats-card" style="background: linear-gradient(135deg, #00b09b 0%, #96c93d 100%);">
-                    <h3>{results['matching_count']}</h3>
-                    <p>Matching Clauses</p>
+                    <h3>{total_matched}</h3>
+                    <p>Matched Clauses</p>
                 </div>
             """, unsafe_allow_html=True)
         with c3:
             st.markdown(f"""
                 <div class="stats-card" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
-                    <h3>{len(results['only_in_doc1'])}</h3>
+                    <h3>{unique_doc1}</h3>
                     <p>Only in Doc 1</p>
                 </div>
             """, unsafe_allow_html=True)
         with c4:
             st.markdown(f"""
                 <div class="stats-card" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
-                    <h3>{len(results['only_in_doc2'])}</h3>
+                    <h3>{unique_doc2}</h3>
                     <p>Only in Doc 2</p>
                 </div>
             """, unsafe_allow_html=True)
 
-        # Bar chart
+        # ---- Bar chart ----
         st.subheader("📊 Visual Analysis")
         fig = go.Figure(data=[
             go.Bar(
                 x=['Doc 1 Only', 'Doc 2 Only', 'Matching'],
-                y=[len(results['only_in_doc1']), len(results['only_in_doc2']), results['matching_count']],
+                y=[unique_doc1, unique_doc2, total_matched],
                 marker_color=['#EF4444', '#3B82F6', '#22C55E'],
-                text=[len(results['only_in_doc1']), len(results['only_in_doc2']), results['matching_count']],
+                text=[unique_doc1, unique_doc2, total_matched],
                 textposition='auto',
             )
         ])
         fig.update_layout(height=400, showlegend=False, plot_bgcolor='rgba(0,0,0,0)')
         st.plotly_chart(fig, use_container_width=True)
 
-        # Categories
-        exact, partial, unique = categorize_results(results, doc1_clauses, doc2_clauses)
-
+        # ---- Three Categories ----
         st.subheader("📂 Clause Categories")
         with st.expander(f"✅ Exact Matches (Similarity ≥ 0.999) — {len(exact)} pairs"):
-            for m in exact:
-                st.markdown(f"""
-                    <div class="exact-box">
-                        <strong>📄 Doc1 – Clause {m['doc1_num']}</strong><br>{m['doc1_text']}<br><br>
-                        <strong>📄 Doc2 – Clause {m['doc2_num']}</strong><br>{m['doc2_text']}<br><br>
-                        <span style="color:#059669;">✅ Similarity: {m['similarity']:.3f}</span>
-                    </div>
-                """, unsafe_allow_html=True)
+            if exact:
+                for m in exact:
+                    st.markdown(f"""
+                        <div class="exact-box">
+                            <strong>📄 Doc1 – Clause {m['doc1_num']}</strong><br>{m['doc1_text']}<br><br>
+                            <strong>📄 Doc2 – Clause {m['doc2_num']}</strong><br>{m['doc2_text']}<br><br>
+                            <span style="color:#059669;">✅ Similarity: {m['similarity']:.3f}</span>
+                        </div>
+                    """, unsafe_allow_html=True)
+            else:
+                st.info("No exact matches found.")
 
         with st.expander(f"🟡 Partial Matches (0.5 ≤ Similarity < 0.999) — {len(partial)} pairs"):
-            for m in partial:
-                st.markdown(f"""
-                    <div class="partial-box">
-                        <strong>📄 Doc1 – Clause {m['doc1_num']}</strong><br>{m['doc1_text']}<br><br>
-                        <strong>📄 Doc2 – Clause {m['doc2_num']}</strong><br>{m['doc2_text']}<br><br>
-                        <span style="color:#D97706;">🔶 Similarity: {m['similarity']:.3f}</span>
-                    </div>
-                """, unsafe_allow_html=True)
+            if partial:
+                for m in partial:
+                    st.markdown(f"""
+                        <div class="partial-box">
+                            <strong>📄 Doc1 – Clause {m['doc1_num']}</strong><br>{m['doc1_text']}<br><br>
+                            <strong>📄 Doc2 – Clause {m['doc2_num']}</strong><br>{m['doc2_text']}<br><br>
+                            <span style="color:#D97706;">🔶 Similarity: {m['similarity']:.3f}</span>
+                        </div>
+                    """, unsafe_allow_html=True)
+            else:
+                st.info("No partial matches found.")
 
-        with st.expander(f"🔴 Unique Clauses (Similarity < 0.5) — {len(unique)} clauses"):
-            for u in unique:
-                st.markdown(f"""
-                    <div class="unique-box">
-                        <strong>📄 {u['document']} – Clause {u['number']}</strong><br>{u['text']}<br><br>
-                        <span style="color:#DC2626;">❌ Best similarity: {u['similarity']:.3f}</span>
-                    </div>
-                """, unsafe_allow_html=True)
+        with st.expander(f"🔴 Unique Clauses (not matched) — {len(unique)} clauses"):
+            if unique:
+                for u in unique:
+                    st.markdown(f"""
+                        <div class="unique-box">
+                            <strong>📄 {u['document']} – Clause {u['number']}</strong><br>{u['text']}<br><br>
+                            <span style="color:#DC2626;">❌ Best similarity: {u['similarity']:.3f}</span>
+                        </div>
+                    """, unsafe_allow_html=True)
+            else:
+                st.info("All clauses are matched (no unique clauses).")
 
-        # Download section
+        # ---- Download reports ----
         st.subheader("📥 Download Reports")
-        # Generate report data
         txt_report = format_report(results)
         json_report = save_report(results)  # returns JSON string
         pdf_report = generate_pdf_report(results, doc1_clauses, doc2_clauses)
@@ -271,7 +285,7 @@ def main():
                 mime="application/json"
             )
 
-        # Processing details
+        # ---- Processing details ----
         with st.expander("🔧 Processing Details"):
             st.json({
                 'extraction': 'Text-block (\\n\\n split)',
@@ -285,7 +299,6 @@ def main():
             })
 
 if __name__ == "__main__":
-    # Check Ollama
     try:
         import ollama
         ollama.list()

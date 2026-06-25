@@ -41,7 +41,6 @@ def generate_clause_id(text: str, document_name: str) -> str:
     return f"{doc_hash}_{content_hash}"
 
 def format_report(results: Dict) -> str:
-    """Plain text report (for TXT download)."""
     lines = []
     lines.append("=" * 80)
     lines.append("LEGAL DOCUMENT COMPARISON REPORT")
@@ -78,7 +77,6 @@ def format_report(results: Dict) -> str:
     return "\n".join(lines)
 
 def save_report(results: Dict, filename: str = None) -> str:
-    """Return JSON string (no file write unless filename provided)."""
     clean_results = {
         'only_in_doc1': results.get('only_in_doc1', []),
         'only_in_doc2': results.get('only_in_doc2', []),
@@ -96,89 +94,88 @@ def save_report(results: Dict, filename: str = None) -> str:
     return json_str
 
 # ------------------------------------------------------------
-# Helper for categorisation (used in app and PDF)
+# FIXED categorisation – original logic, but now all unmatched
+# doc2 clauses go to unique, regardless of similarity
 # ------------------------------------------------------------
 def categorize_results(results, doc1_clauses, doc2_clauses):
     """
-    Returns three lists: exact_matches, partial_matches, unique_clauses.
+    Returns three lists:
+      - exact_matches   (similarity >= 0.999)
+      - partial_matches (0.5 <= similarity < 0.999)
+      - unique_clauses  (unmatched clauses from both docs)
     """
     exact = []
     partial = []
     unique = []
-    matching_details = results.get('matching_details', [])
-    
-    # Process doc1 clauses
-    for detail in matching_details:
+
+    # Build set of doc2 indices that are matched (by the algorithm)
+    matched_doc2_indices = set()
+    for detail in results.get('matching_details', []):
+        if detail.get('found_match') and detail.get('best_match'):
+            idx = detail['best_match']['clause_idx']
+            if idx >= 0:
+                matched_doc2_indices.add(idx)
+
+    # Process doc1 clauses using their top similarity
+    for i, clause1 in enumerate(doc1_clauses):
+        detail = results['matching_details'][i] if i < len(results.get('matching_details', [])) else {}
         sim = detail.get('top_similarity', 0.0)
         idx = detail.get('top_match_idx', -1)
-        clause1_text = detail['clause_text']
-        clause1_num = detail.get('clause_number', '')
-        if idx >= 0 and idx < len(doc2_clauses):
-            clause2 = doc2_clauses[idx]
-            clause2_text = clause2['text']
-            clause2_num = clause2.get('number', '')
-            if sim >= 0.999:
+
+        if sim >= 0.999:
+            # exact match
+            if idx >= 0 and idx < len(doc2_clauses):
+                clause2 = doc2_clauses[idx]
                 exact.append({
-                    'doc1_num': clause1_num,
-                    'doc1_text': clause1_text,
-                    'doc2_num': clause2_num,
-                    'doc2_text': clause2_text,
+                    'doc1_num': clause1.get('number', str(i+1)),
+                    'doc1_text': clause1['text'],
+                    'doc2_num': clause2.get('number', str(idx+1)),
+                    'doc2_text': clause2['text'],
                     'similarity': sim
                 })
-            elif sim >= 0.5:
+        elif sim >= 0.5:
+            # partial match
+            if idx >= 0 and idx < len(doc2_clauses):
+                clause2 = doc2_clauses[idx]
                 partial.append({
-                    'doc1_num': clause1_num,
-                    'doc1_text': clause1_text,
-                    'doc2_num': clause2_num,
-                    'doc2_text': clause2_text,
-                    'similarity': sim
-                })
-            else:
-                unique.append({
-                    'text': clause1_text,
-                    'document': 'Document 1',
-                    'number': clause1_num,
+                    'doc1_num': clause1.get('number', str(i+1)),
+                    'doc1_text': clause1['text'],
+                    'doc2_num': clause2.get('number', str(idx+1)),
+                    'doc2_text': clause2['text'],
                     'similarity': sim
                 })
         else:
+            # unique from doc1
             unique.append({
-                'text': clause1_text,
+                'text': clause1['text'],
                 'document': 'Document 1',
-                'number': clause1_num,
-                'similarity': 0.0
+                'number': clause1.get('number', str(i+1)),
+                'similarity': sim
             })
-    
-    # Doc2 unique (similarity < 0.5)
-    doc2_best_sims = results.get('doc2_best_similarities', [])
-    if doc2_best_sims:
-        for j, sim in enumerate(doc2_best_sims):
-            if sim < 0.5:
-                clause = doc2_clauses[j]
-                unique.append({
-                    'text': clause['text'],
-                    'document': 'Document 2',
-                    'number': clause.get('number', str(j+1)),
-                    'similarity': sim
-                })
-    else:
-        for clause in results.get('only_in_doc2', []):
-            sim = clause.get('similarity', 0.0)
-            if sim < 0.5:
-                unique.append({
-                    'text': clause['text'],
-                    'document': 'Document 2',
-                    'number': clause.get('number', ''),
-                    'similarity': sim
-                })
+
+    # Process doc2 clauses – add ALL that are NOT matched (regardless of similarity)
+    for j, clause2 in enumerate(doc2_clauses):
+        if j not in matched_doc2_indices:
+            # best similarity for display
+            doc2_best_sims = results.get('doc2_best_similarities', [])
+            sim = doc2_best_sims[j] if j < len(doc2_best_sims) else 0.0
+            unique.append({
+                'text': clause2['text'],
+                'document': 'Document 2',
+                'number': clause2.get('number', str(j+1)),
+                'similarity': sim
+            })
+
+    # Sort unique by similarity descending
     unique.sort(key=lambda x: x['similarity'], reverse=True)
+
     return exact, partial, unique
 
 # ------------------------------------------------------------
-# PDF report generator
+# PDF report generator (uses the same categorisation)
 # ------------------------------------------------------------
 def generate_pdf_report(results, doc1_clauses, doc2_clauses,
                         doc1_name="Document 1", doc2_name="Document 2") -> bytes:
-    """Generate a PDF report using reportlab."""
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=letter,
                             rightMargin=72, leftMargin=72,
@@ -199,20 +196,18 @@ def generate_pdf_report(results, doc1_clauses, doc2_clauses,
     )
     
     story = []
-    # Title
     story.append(Paragraph("Legal Document Comparison Report", title_style))
     story.append(Paragraph(f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", normal_style))
     story.append(Spacer(1, 0.25*inch))
     
-    # Summary
-    story.append(Paragraph("Summary Statistics", heading_style))
+    exact, partial, unique = categorize_results(results, doc1_clauses, doc2_clauses)
     summary_data = [
         ['Metric', 'Value'],
-        ['Total Clauses in Document 1', str(results['total_doc1'])],
-        ['Total Clauses in Document 2', str(results['total_doc2'])],
-        ['Matching Clauses', str(results['matching_count'])],
-        ['Clauses only in Doc 1', str(len(results.get('only_in_doc1', [])))],
-        ['Clauses only in Doc 2', str(len(results.get('only_in_doc2', [])))],
+        ['Total Clauses in Document 1', str(len(doc1_clauses))],
+        ['Total Clauses in Document 2', str(len(doc2_clauses))],
+        ['Exact Matches', str(len(exact))],
+        ['Partial Matches', str(len(partial))],
+        ['Unique Clauses', str(len(unique))],
         ['Processing Time', f"{results['processing_time']:.2f} seconds"],
     ]
     table = Table(summary_data, colWidths=[2.5*inch, 1.5*inch])
@@ -229,10 +224,6 @@ def generate_pdf_report(results, doc1_clauses, doc2_clauses,
     story.append(table)
     story.append(Spacer(1, 0.25*inch))
     
-    # Get categories
-    exact, partial, unique = categorize_results(results, doc1_clauses, doc2_clauses)
-    
-    # Exact matches
     story.append(PageBreak())
     story.append(Paragraph(f"Exact Matches (Similarity ≥ 0.999) — {len(exact)} pairs", heading_style))
     for match in exact:
@@ -243,7 +234,6 @@ def generate_pdf_report(results, doc1_clauses, doc2_clauses,
     if not exact:
         story.append(Paragraph("No exact matches found.", normal_style))
     
-    # Partial matches
     story.append(PageBreak())
     story.append(Paragraph(f"Partial Matches (0.5 ≤ Similarity < 0.999) — {len(partial)} pairs", heading_style))
     for match in partial:
@@ -254,15 +244,14 @@ def generate_pdf_report(results, doc1_clauses, doc2_clauses,
     if not partial:
         story.append(Paragraph("No partial matches found.", normal_style))
     
-    # Unique clauses
     story.append(PageBreak())
-    story.append(Paragraph(f"Unique Clauses (Similarity < 0.5) — {len(unique)} clauses", heading_style))
+    story.append(Paragraph(f"Unique Clauses (not matched) — {len(unique)} clauses", heading_style))
     for clause in unique:
         story.append(Paragraph(f"{clause['document']} – Clause {clause['number']}: {clause['text'][:200]}...", clause_style))
         story.append(Paragraph(f"Best similarity: {clause['similarity']:.3f}", normal_style))
         story.append(Spacer(1, 0.1*inch))
     if not unique:
-        story.append(Paragraph("All clauses have a good match (similarity ≥ 0.5).", normal_style))
+        story.append(Paragraph("All clauses were matched.", normal_style))
     
     doc.build(story)
     pdf_bytes = buffer.getvalue()
