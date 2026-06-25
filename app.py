@@ -35,6 +35,13 @@ if st.button("Execute Semantic Analysis Run", type="primary"):
                     st.code(item['content'], language="text")
         else:
             st.info("No structural deletions detected.")
+            
+        st.subheader("↔️ Renamed or Moved Clauses")
+        if result.get("moved"):
+            for item in result["moved"]:
+                st.info(f"**{item['from']}** was shifted/renamed to **{item['to']}**")
+        else:
+            st.info("No structural shifting or renumbering detected.")
 
         # 3. Semantic Analysis Breakdown Panel
         st.subheader("🔄 Modified Clause Semantic Evaluations")

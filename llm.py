@@ -6,7 +6,9 @@ def compare_clause(clause_id: str, a: str, b: str) -> dict:
     """Queries local Ollama instance with fallback JSON parsing logic."""
     prompt = f"""You are an expert contract compliance auditor. Compare Version A and Version B of [{clause_id}] for semantic variations.
 
-CRITICAL INSTRUCTION: Pay strict, aggressive attention to numeric shifts, currency updates, liability limits, and day/deadline numbers. If a dollar figure, count, or timeline changes, it is mathematically a critical modification. You must classify it as "Obligation Shifted" or "Wording Modified". Do NOT call it "No Material Change".
+CRITICAL INSTRUCTIONS: 
+1. Ignore changes in section titles, numbering, or formatting.
+2. Pay strict attention to numeric shifts, currency updates, liability limits, and day/deadline numbers. If a dollar figure or timeline changes, it is a critical modification. You must classify it as "Obligation Shifted" or "Wording Modified".
 
 VERSION A:
 {a}
