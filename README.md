@@ -41,30 +41,41 @@ Streamlit UI Dashboard
 ## 🔒 Privacy Model
 
 ✔ Fully offline execution
+
 ✔ No external APIs or cloud inference
+
 ✔ No telemetry or logging services
+
 ✔ All data remains on local machine memory
-⚙️ Tech Stack
+
+---
+
+## ⚙️ Tech Stack
+
+```text
 Python 3.10+
 Streamlit
 PyMuPDF
 docx2txt
 Ollama
 Local LLMs (e.g., Qwen, Phi)
+```
 
 ---
 
 ## 🤖 Supported Models
 
 Run locally via Ollama:
-
+```text
 ollama pull qwen2.5:7b
+```
 
 Other supported models:
-
+```text
 Phi-4 Mini
 Mistral Small
 Llama variants
+```
 
 ---
 
@@ -86,8 +97,9 @@ Download from:
 https://ollama.com
 
 Then pull model:
-
+```text
 ollama pull qwen2.5:7b
+```
 
 ---
 
