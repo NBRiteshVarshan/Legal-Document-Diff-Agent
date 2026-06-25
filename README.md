@@ -82,14 +82,15 @@ Llama variants
 ## 📦 Installation
 
 1. Clone repository
-
+```text
 git clone https://github.com/your-username/local-doc-diff-agent.git
-
 cd local-doc-diff-agent
+```
 
 2. Install dependencies
-
+```text
 pip install -r requirements.txt
+```
 
 3. Install Ollama
 
@@ -114,30 +115,23 @@ http://localhost:8501
 ---
 
 ## 📂 Project Structure
-
+```text
 local-doc-diff-agent/
-
 │
-
 ├── app.py              # Streamlit UI
-
 ├── agent.py            # Core orchestration engine
-
 ├── parser.py          # Document parsing + clause extraction
-
 ├── llm.py             # Local LLM inference layer
-
 ├── schemas.py         # Structured output schema
-
 ├── requirements.txt
-
 └── README.md
+```
 
 ---
 
 ## 🧪 Features
 
-✔ Structural Diffing
+### ✔ Structural Diffing
 
 Detects:
 
@@ -145,7 +139,7 @@ Added clauses
 
 Removed clauses
 
-✔ Semantic Change Detection
+### ✔ Semantic Change Detection
 
 Uses local LLM to classify:
 
@@ -155,7 +149,7 @@ Obligation shifts
 
 No material change
 
-✔ Risk Scoring
+### ✔ Risk Scoring
 
 Each modified clause is labeled:
 
@@ -169,7 +163,7 @@ High
 
 No internet required after model download.
 
-🧰 Example Output
+### 🧰 Example Output
 
 {
   "change_type": "Obligation Shifted",
