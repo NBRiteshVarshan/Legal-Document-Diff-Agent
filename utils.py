@@ -94,21 +94,20 @@ def save_report(results: Dict, filename: str = None) -> str:
     return json_str
 
 # ------------------------------------------------------------
-# FIXED categorisation – original logic, but now all unmatched
-# doc2 clauses go to unique, regardless of similarity
+# FIXED categorisation – only actual matches go to exact/partial
 # ------------------------------------------------------------
 def categorize_results(results, doc1_clauses, doc2_clauses):
     """
     Returns three lists:
-      - exact_matches   (similarity >= 0.999)
-      - partial_matches (0.5 <= similarity < 0.999)
-      - unique_clauses  (unmatched clauses from both docs)
+      - exact_matches   (similarity >= 0.999 AND found_match == True)
+      - partial_matches (0.5 <= similarity < 0.999 AND found_match == True)
+      - unique_clauses  (all other clauses: unmatched from both docs)
     """
     exact = []
     partial = []
     unique = []
 
-    # Build set of doc2 indices that are matched (by the algorithm)
+    # Build set of doc2 indices that are actually matched
     matched_doc2_indices = set()
     for detail in results.get('matching_details', []):
         if detail.get('found_match') and detail.get('best_match'):
@@ -116,36 +115,33 @@ def categorize_results(results, doc1_clauses, doc2_clauses):
             if idx >= 0:
                 matched_doc2_indices.add(idx)
 
-    # Process doc1 clauses using their top similarity
+    # Process doc1 clauses – only matched ones go to exact/partial
     for i, clause1 in enumerate(doc1_clauses):
         detail = results['matching_details'][i] if i < len(results.get('matching_details', [])) else {}
         sim = detail.get('top_similarity', 0.0)
         idx = detail.get('top_match_idx', -1)
+        found = detail.get('found_match', False)
 
-        if sim >= 0.999:
-            # exact match
-            if idx >= 0 and idx < len(doc2_clauses):
-                clause2 = doc2_clauses[idx]
-                exact.append({
-                    'doc1_num': clause1.get('number', str(i+1)),
-                    'doc1_text': clause1['text'],
-                    'doc2_num': clause2.get('number', str(idx+1)),
-                    'doc2_text': clause2['text'],
-                    'similarity': sim
-                })
-        elif sim >= 0.5:
-            # partial match
-            if idx >= 0 and idx < len(doc2_clauses):
-                clause2 = doc2_clauses[idx]
-                partial.append({
-                    'doc1_num': clause1.get('number', str(i+1)),
-                    'doc1_text': clause1['text'],
-                    'doc2_num': clause2.get('number', str(idx+1)),
-                    'doc2_text': clause2['text'],
-                    'similarity': sim
-                })
+        if found and sim >= 0.999 and idx >= 0 and idx < len(doc2_clauses):
+            clause2 = doc2_clauses[idx]
+            exact.append({
+                'doc1_num': clause1.get('number', str(i+1)),
+                'doc1_text': clause1['text'],
+                'doc2_num': clause2.get('number', str(idx+1)),
+                'doc2_text': clause2['text'],
+                'similarity': sim
+            })
+        elif found and sim >= 0.5 and idx >= 0 and idx < len(doc2_clauses):
+            clause2 = doc2_clauses[idx]
+            partial.append({
+                'doc1_num': clause1.get('number', str(i+1)),
+                'doc1_text': clause1['text'],
+                'doc2_num': clause2.get('number', str(idx+1)),
+                'doc2_text': clause2['text'],
+                'similarity': sim
+            })
         else:
-            # unique from doc1
+            # unmatched doc1
             unique.append({
                 'text': clause1['text'],
                 'document': 'Document 1',
@@ -153,10 +149,9 @@ def categorize_results(results, doc1_clauses, doc2_clauses):
                 'similarity': sim
             })
 
-    # Process doc2 clauses – add ALL that are NOT matched (regardless of similarity)
+    # Process doc2 clauses – add all that are NOT matched
     for j, clause2 in enumerate(doc2_clauses):
         if j not in matched_doc2_indices:
-            # best similarity for display
             doc2_best_sims = results.get('doc2_best_similarities', [])
             sim = doc2_best_sims[j] if j < len(doc2_best_sims) else 0.0
             unique.append({
@@ -166,9 +161,7 @@ def categorize_results(results, doc1_clauses, doc2_clauses):
                 'similarity': sim
             })
 
-    # Sort unique by similarity descending
     unique.sort(key=lambda x: x['similarity'], reverse=True)
-
     return exact, partial, unique
 
 # ------------------------------------------------------------

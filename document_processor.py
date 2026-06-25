@@ -1,5 +1,5 @@
 import re
-import fitz 
+import fitz  # PyMuPDF
 import docx2txt
 from typing import List, Dict, Any
 
