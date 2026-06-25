@@ -1,7 +1,6 @@
 import streamlit as st
 from agent import run_diff
 
-# Set layout window orientation config
 st.set_page_config(layout="wide")
 st.title("📄 Zero-Leak Document Compliance Agent")
 st.caption("Offline legal contract intelligence engine with selective local LLM reasoning capabilities.")
@@ -19,7 +18,7 @@ if st.button("Execute Semantic Analysis Run", type="primary"):
 
         st.success("Analysis Complete")
         
-        # 1. Added Sections Rendering 
+        # 1. Added Sections Rendering Block
         st.subheader("➕ Added Clauses (Present in B, Missing in A)")
         if result["added"]:
             for item in result["added"]:
@@ -28,7 +27,7 @@ if st.button("Execute Semantic Analysis Run", type="primary"):
         else:
             st.info("No structural additions detected.")
 
-        # 2. Removed Sections Rendering
+        # 2. Removed Sections Rendering Block
         st.subheader("➖ Removed Clauses (Present in A, Missing in B)")
         if result["removed"]:
             for item in result["removed"]:
@@ -37,7 +36,7 @@ if st.button("Execute Semantic Analysis Run", type="primary"):
         else:
             st.info("No structural deletions detected.")
 
-        # 3. Semantic Analysis Summary Cards
+        # 3. Semantic Analysis Breakdown Panel
         st.subheader("🔄 Modified Clause Semantic Evaluations")
         if result["modified"]:
             for clause, analysis in result["modified"].items():
