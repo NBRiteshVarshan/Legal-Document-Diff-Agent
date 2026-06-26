@@ -216,7 +216,7 @@ def main():
         fig.update_layout(height=400, showlegend=False, plot_bgcolor='rgba(0,0,0,0)')
         st.plotly_chart(fig, use_container_width=True)
 
-        # ---- Three Categories ----
+        # ---- Three Categories (with separated unique) ----
         st.subheader("📂 Clause Categories")
         with st.expander(f"✅ Exact Matches (Similarity ≥ 0.999) — {len(exact)} pairs"):
             if exact:
@@ -244,15 +244,35 @@ def main():
             else:
                 st.info("No partial matches found.")
 
-        with st.expander(f"🔴 Unique Clauses (not matched) — {len(unique)} clauses"):
+        # ---- Unique expander with two sub-sections ----
+        with st.expander(f"🔴 Unique Clauses (not matched) — {len(unique)} total"):
             if unique:
-                for u in unique:
-                    st.markdown(f"""
-                        <div class="unique-box">
-                            <strong>📄 {u['document']} – Clause {u['number']}</strong><br>{u['text']}<br><br>
-                            <span style="color:#DC2626;">❌ Best similarity: {u['similarity']:.3f}</span>
-                        </div>
-                    """, unsafe_allow_html=True)
+                # Separate by document
+                unique_doc1_list = [u for u in unique if u['document'] == 'Document 1']
+                unique_doc2_list = [u for u in unique if u['document'] == 'Document 2']
+
+                if unique_doc1_list:
+                    st.markdown("**📄 Document 1 Unique:**")
+                    for u in unique_doc1_list:
+                        st.markdown(f"""
+                            <div class="unique-box">
+                                <strong>Clause {u['number']}</strong><br>{u['text']}<br>
+                                <span style="color:#DC2626;">❌ Best similarity: {u['similarity']:.3f}</span>
+                            </div>
+                        """, unsafe_allow_html=True)
+
+                if unique_doc2_list:
+                    st.markdown("**📄 Document 2 Unique:**")
+                    for u in unique_doc2_list:
+                        st.markdown(f"""
+                            <div class="unique-box">
+                                <strong>Clause {u['number']}</strong><br>{u['text']}<br>
+                                <span style="color:#DC2626;">❌ Best similarity: {u['similarity']:.3f}</span>
+                            </div>
+                        """, unsafe_allow_html=True)
+
+                if not unique_doc1_list and not unique_doc2_list:
+                    st.info("No unique clauses found.")
             else:
                 st.info("All clauses are matched (no unique clauses).")
 
