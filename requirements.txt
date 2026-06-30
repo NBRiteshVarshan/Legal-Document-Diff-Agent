@@ -10,3 +10,4 @@ plotly>=5.18.0
 torch>=2.0.0
 transformers>=4.30.0
 reportlab>=4.0.0
+aiohttp>=3.9.0
