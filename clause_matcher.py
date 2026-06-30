@@ -12,7 +12,7 @@ class LegalClauseMatcher:
         print(f"Loading embedding model: {embedding_model}")
         self.embedder = SentenceTransformer(embedding_model)
         self.cache = {}
-        self.llm_model = 'qwen2.5:7b'
+        self.llm_model = 'llama3.2:3b'
 
     def get_embeddings(self, clauses: List[Dict], doc_name: str) -> np.ndarray:
         embeddings = []
@@ -61,8 +61,8 @@ Respond in JSON format with these keys:
 
     def match_documents(self, doc1_clauses, doc2_clauses,
                         doc1_name="Document 1", doc2_name="Document 2",
-                        similarity_threshold=0.4,
-                        high_similarity_threshold=0.85,
+                        similarity_threshold=0.6,        # 🔼 increased from 0.4
+                        high_similarity_threshold=0.9,   # 🔼 increased from 0.85
                         match_threshold=0.5):
         
         start = time.time()
@@ -73,15 +73,11 @@ Respond in JSON format with these keys:
         n1 = len(doc1_clauses)
         n2 = len(doc2_clauses)
 
-        # Full similarity matrix
         sim_matrix = cosine_similarity(emb1, emb2)
 
-        # Track matches
         matched_doc1 = [False] * n1
         matched_doc2 = [False] * n2
-        
-        # Store match details for each doc1 clause
-        match_pairs = []  # list of (doc1_idx, doc2_idx, similarity, reason)
+        match_pairs = []
 
         # STEP 1: Mutual best matching
         print("Step 1: Finding mutual best matches...")
@@ -100,36 +96,31 @@ Respond in JSON format with these keys:
                     match_pairs.append((i, j, sim, 'Mutual best match'))
                     mutual_count += 1
 
-        print(f"  → {mutual_count} mutual best matches found")
+        print(f"  → {mutual_count} mutual best matches")
 
         # STEP 2: Greedy matching (Doc1 → Doc2)
         print("Step 2: Greedy matching remaining clauses...")
         greedy_count = 0
         llm_count = 0
-        
+
         for i in range(n1):
             if matched_doc1[i]:
-                continue  # already matched
+                continue
 
-            # Get top candidates for this doc1 clause
-            sims = sim_matrix[i, :]  # similarities to all doc2 clauses
-            # Sort by similarity descending
+            sims = sim_matrix[i, :]
             sorted_indices = np.argsort(sims)[::-1]
-            
+
             matched = False
             best_match_info = None
 
             for j in sorted_indices:
                 if matched_doc2[j]:
-                    continue  # this doc2 clause is already taken
-                
+                    continue
                 sim = sims[j]
-                
                 if sim < similarity_threshold:
-                    break  # no more candidates above threshold
+                    break
 
                 if sim >= high_similarity_threshold:
-                    # High similarity – instant match
                     matched_doc1[i] = True
                     matched_doc2[j] = True
                     match_pairs.append((i, j, sim, f'High similarity (≥{high_similarity_threshold})'))
@@ -137,11 +128,11 @@ Respond in JSON format with these keys:
                     greedy_count += 1
                     break
 
-                # Borderline – use LLM
+                # Borderline – use LLM (but now only between 0.6 and 0.9)
                 clause1 = doc1_clauses[i]
                 clause2 = doc2_clauses[j]
                 llm_result = self.compare_with_llm(clause1['text'], clause2['text'])
-                
+
                 if llm_result.get('match', False) and llm_result.get('confidence', 0) > 0.7:
                     matched_doc1[i] = True
                     matched_doc2[j] = True
@@ -151,19 +142,15 @@ Respond in JSON format with these keys:
                     break
 
             if not matched:
-                # This doc1 clause remains unmatched
+                # remains unmatched
                 pass
 
         print(f"  → {greedy_count} greedy matches, {llm_count} via LLM")
 
-        # Build the results
+        # Build results (same as before)
         matching_details = []
         only_in_doc1 = []
-        
-        # Map doc1 index to its match (doc2 index and similarity)
-        match_map = {}
-        for i, j, sim, reason in match_pairs:
-            match_map[i] = (j, sim, reason)
+        match_map = {i: (j, sim, reason) for i, j, sim, reason in match_pairs}
 
         for i, clause1 in enumerate(doc1_clauses):
             if i in match_map:
@@ -185,7 +172,6 @@ Respond in JSON format with these keys:
                     'top_match_idx': j
                 })
             else:
-                # Unmatched doc1
                 top_j = np.argmax(sim_matrix[i, :])
                 top_sim = sim_matrix[i, top_j]
                 matching_details.append({
@@ -204,7 +190,6 @@ Respond in JSON format with these keys:
                     'metadata': clause1.get('metadata', {})
                 })
 
-        # Collect unmatched doc2 clauses
         only_in_doc2 = []
         for j in range(n2):
             if not matched_doc2[j]:

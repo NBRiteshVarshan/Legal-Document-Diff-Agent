@@ -65,7 +65,7 @@ def main():
         )
 
         st.subheader("🧠 LLM Settings")
-        st.info("Using Qwen2.5:7b (Local)")
+        st.info("Using llama3.2:3b (Local)")
         st.caption("✅ No data leaves your machine")
         st.divider()
 
