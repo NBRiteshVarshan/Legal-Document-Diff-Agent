@@ -11,9 +11,8 @@ from reportlab.lib import colors
 from reportlab.lib.units import inch
 import io
 
-# ------------------------------------------------------------
-# Helper to recursively convert NumPy types to Python natives
-# ------------------------------------------------------------
+
+# To recursively convert NumPy types to Python natives
 def sanitize_for_json(obj):
     if isinstance(obj, (np.float32, np.float64)):
         return float(obj)
@@ -27,9 +26,7 @@ def sanitize_for_json(obj):
         return [sanitize_for_json(item) for item in obj]
     return obj
 
-# ------------------------------------------------------------
-# Utility functions
-# ------------------------------------------------------------
+
 def clean_text(text: str) -> str:
     text = re.sub(r'\s+', ' ', text)
     text = re.sub(r'[^\w\s\.\,\;\:\-\"\'\?\$\%\&\(\)]', '', text)
@@ -93,21 +90,12 @@ def save_report(results: Dict, filename: str = None) -> str:
             f.write(json_str)
     return json_str
 
-# ------------------------------------------------------------
-# FIXED categorisation – only actual matches go to exact/partial
-# ------------------------------------------------------------
+
 def categorize_results(results, doc1_clauses, doc2_clauses):
-    """
-    Returns three lists:
-      - exact_matches   (similarity >= 0.999 AND found_match == True)
-      - partial_matches (0.5 <= similarity < 0.999 AND found_match == True)
-      - unique_clauses  (all other clauses: unmatched from both docs)
-    """
     exact = []
     partial = []
     unique = []
 
-    # Build set of doc2 indices that are actually matched
     matched_doc2_indices = set()
     for detail in results.get('matching_details', []):
         if detail.get('found_match') and detail.get('best_match'):
@@ -115,7 +103,7 @@ def categorize_results(results, doc1_clauses, doc2_clauses):
             if idx >= 0:
                 matched_doc2_indices.add(idx)
 
-    # Process doc1 clauses – only matched ones go to exact/partial
+
     for i, clause1 in enumerate(doc1_clauses):
         detail = results['matching_details'][i] if i < len(results.get('matching_details', [])) else {}
         sim = detail.get('top_similarity', 0.0)
@@ -141,7 +129,6 @@ def categorize_results(results, doc1_clauses, doc2_clauses):
                 'similarity': sim
             })
         else:
-            # unmatched doc1
             unique.append({
                 'text': clause1['text'],
                 'document': 'Document 1',
@@ -149,7 +136,7 @@ def categorize_results(results, doc1_clauses, doc2_clauses):
                 'similarity': sim
             })
 
-    # Process doc2 clauses – add all that are NOT matched
+
     for j, clause2 in enumerate(doc2_clauses):
         if j not in matched_doc2_indices:
             doc2_best_sims = results.get('doc2_best_similarities', [])
@@ -164,9 +151,7 @@ def categorize_results(results, doc1_clauses, doc2_clauses):
     unique.sort(key=lambda x: x['similarity'], reverse=True)
     return exact, partial, unique
 
-# ------------------------------------------------------------
-# PDF report generator (uses the same categorisation)
-# ------------------------------------------------------------
+
 def generate_pdf_report(results, doc1_clauses, doc2_clauses,
                         doc1_name="Document 1", doc2_name="Document 2") -> bytes:
     buffer = io.BytesIO()

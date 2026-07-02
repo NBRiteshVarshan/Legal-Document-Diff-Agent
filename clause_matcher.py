@@ -15,7 +15,7 @@ class LegalClauseMatcher:
         self.cache = {}
         self.llm_model = 'llama3.2:3b'
 
-    def get_embeddings(self, clauses: List[Dict], doc_name: str) -> np.ndarray:
+    def get_embeddings(self, clauses: List[Dict], doc_name: str):
         embeddings = []
         for clause in clauses:
             cid = generate_clause_id(clause['text'], doc_name)
@@ -40,6 +40,7 @@ They DO NOT match if:
 - One has additional conditions the other lacks
 - The scope is different (e.g., "worldwide" vs "US only")
 - The obligation is stronger/weaker (e.g., "shall" vs "may")
+- The numbers in the clauses are different.
 
 Clause A: "{clause_a}"
 Clause B: "{clause_b}"
@@ -88,7 +89,6 @@ Respond in JSON format with these keys:
         update_progress(0.1, "Computing similarity matrix...")
         sim_matrix = cosine_similarity(emb1, emb2)
 
-        # STEP 1: Best-Match Mapping
         update_progress(0.2, "Building best-match map...")
         best_match_map = {}
         for i in range(n1):
@@ -117,7 +117,7 @@ Respond in JSON format with these keys:
                 matched_doc2[j] = True
                 match_pairs.append((winner_i, j, winner_sim, 'Best match (highest sim)'))
 
-        # STEP 3: Greedy fallback + collect borderline (0.4–0.5)
+
         update_progress(0.4, "Scanning remaining clauses...")
         ambiguous_pairs = []
         for i in range(n1):
@@ -138,9 +138,8 @@ Respond in JSON format with these keys:
                     break
                 elif sim >= similarity_threshold:
                     ambiguous_pairs.append((i, j, sim))
-                    # collect all borderline candidates for LLM
 
-        # STEP 4: LLM for borderline (0.4–0.5)
+   
         if ambiguous_pairs:
             ambiguous_pairs.sort(key=lambda x: x[2], reverse=True)
             filtered_pairs = []
