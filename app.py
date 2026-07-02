@@ -6,15 +6,12 @@ from document_processor import ClauseExtractor, get_document_summary
 from clause_matcher import LegalClauseMatcher
 from utils import format_report, save_report, generate_pdf_report, categorize_results
 
-# Page config
 st.set_page_config(
     page_title="Legal Document Comparator",
-    page_icon="⚖️",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-# Custom CSS
 st.markdown("""
     <style>
     .main-header { font-size: 2.5rem; color: #1E3A8A; text-align: center; margin-bottom: 2rem; }
@@ -41,20 +38,20 @@ def init_session_state():
         st.session_state.extraction_config = {'min_clause_length': 60, 'merge_threshold': 30}
 
 def main():
-    st.markdown('<h1 class="main-header">⚖️ Legal Document Comparator</h1>', unsafe_allow_html=True)
+    st.markdown('<h1 class="main-header">Legal Document Comparator</h1>', unsafe_allow_html=True)
     st.markdown("Compare two legal documents and identify differences in clauses")
     init_session_state()
 
     # Sidebar
     with st.sidebar:
-        st.header("⚙️ Configuration")
-        st.subheader("📄 Extraction Settings")
+        st.header("Configuration")
+        st.subheader("Extraction Settings")
         min_len = st.slider("Minimum Clause Length (characters)", 20, 200, 60, 10)
         merge_len = st.slider("Merge Short Segments (characters)", 10, 100, 30, 5)
         st.session_state.extraction_config['min_clause_length'] = min_len
         st.session_state.extraction_config['merge_threshold'] = merge_len
 
-        st.subheader("🎯 Comparison Settings")
+        st.subheader("Comparison Settings")
         sim_threshold = st.slider(
             "Similarity Threshold (LLM range starts here)",
             min_value=0.1,
@@ -64,13 +61,12 @@ def main():
             help="Clauses with similarity in [0.4, 0.5) go to LLM; ≥0.5 are instant matches."
         )
 
-        st.subheader("🧠 LLM Settings")
+        st.subheader("LLM Settings")
         st.info("Using llama3.2:3b (local)")
-        st.caption("✅ No data leaves your machine")
         st.divider()
 
         if st.session_state.doc1_clauses and st.session_state.doc2_clauses:
-            st.subheader("📊 Document Summary")
+            st.subheader("Document Summary")
             s1 = get_document_summary(st.session_state.doc1_clauses)
             s2 = get_document_summary(st.session_state.doc2_clauses)
             c1, c2 = st.columns(2)
@@ -81,10 +77,9 @@ def main():
                 st.metric("Document 2", s2['total'], "clauses")
                 st.caption(f"Avg: {s2['avg_length']} words")
 
-    # Upload columns
     col1, col2 = st.columns(2)
     with col1:
-        st.subheader("📄 Document 1")
+        st.subheader("Document 1")
         doc1 = st.file_uploader("Upload Document 1 (PDF or DOCX)", type=['pdf', 'docx'], key="doc1")
         if doc1 and st.button("📥 Process Document 1", key="process1"):
             with st.spinner("Extracting clauses..."):
@@ -111,7 +106,7 @@ def main():
                     st.caption(f"... and {len(st.session_state.doc1_clauses)-5} more")
 
     with col2:
-        st.subheader("📄 Document 2")
+        st.subheader("Document 2")
         doc2 = st.file_uploader("Upload Document 2 (PDF or DOCX)", type=['pdf', 'docx'], key="doc2")
         if doc2 and st.button("📥 Process Document 2", key="process2"):
             with st.spinner("Extracting clauses..."):
@@ -137,7 +132,6 @@ def main():
                 if len(st.session_state.doc2_clauses) > 5:
                     st.caption(f"... and {len(st.session_state.doc2_clauses)-5} more")
 
-    # Compare button
     st.divider()
     _, mid, _ = st.columns([1,2,1])
     with mid:
@@ -147,7 +141,6 @@ def main():
             disabled=not (st.session_state.doc1_clauses and st.session_state.doc2_clauses)
         )
 
-    # Progress bar placeholders (shown only during comparison)
     progress_placeholder = st.empty()
     status_placeholder = st.empty()
 
@@ -157,12 +150,10 @@ def main():
             try:
                 matcher = LegalClauseMatcher()
 
-                # Define progress callback
                 def update_progress(progress, status):
                     progress_placeholder.progress(progress)
                     status_placeholder.text(status)
 
-                # Run comparison with progress updates
                 results = matcher.match_documents(
                     st.session_state.doc1_clauses,
                     st.session_state.doc2_clauses,
@@ -175,12 +166,10 @@ def main():
                 st.session_state.comparison_results = results
                 st.session_state.processing = False
 
-                # Clear the progress bar after completion
                 progress_placeholder.empty()
                 status_placeholder.empty()
 
                 st.success(f"✅ Comparison complete! Processed {results['total_doc1']+results['total_doc2']} clauses in {results['processing_time']:.2f}s")
-                st.balloons()  # optional celebration
 
             except Exception as e:
                 st.session_state.processing = False
@@ -189,13 +178,11 @@ def main():
                 st.error(f"Error: {e}")
                 st.info("Make sure Ollama is running and llama3.2:3b is pulled.\n`ollama serve` and `ollama pull llama3.2:3b`")
 
-    # Display results
     if st.session_state.comparison_results and not st.session_state.processing:
         results = st.session_state.comparison_results
         doc1_clauses = st.session_state.doc1_clauses
         doc2_clauses = st.session_state.doc2_clauses
 
-        # ---- Categories ----
         exact, partial, unique = categorize_results(results, doc1_clauses, doc2_clauses)
 
         total_clauses = results['total_doc1'] + results['total_doc2']
@@ -203,7 +190,7 @@ def main():
         unique_doc1 = sum(1 for u in unique if u['document'] == 'Document 1')
         unique_doc2 = sum(1 for u in unique if u['document'] == 'Document 2')
 
-        # ---- Summary cards ----
+
         c1, c2, c3, c4 = st.columns(4)
         with c1:
             st.markdown(f"""
@@ -234,8 +221,8 @@ def main():
                 </div>
             """, unsafe_allow_html=True)
 
-        # ---- Bar chart ----
-        st.subheader("📊 Visual Analysis")
+
+        st.subheader("Visual Analysis")
         fig = go.Figure(data=[
             go.Bar(
                 x=['Doc 1 Only', 'Doc 2 Only', 'Matching'],
@@ -248,8 +235,8 @@ def main():
         fig.update_layout(height=400, showlegend=False, plot_bgcolor='rgba(0,0,0,0)')
         st.plotly_chart(fig, use_container_width=True)
 
-        # ---- Expanders for categories ----
-        st.subheader("📂 Clause Categories")
+
+        st.subheader("Clause Categories")
         with st.expander(f"✅ Exact Matches (Similarity ≥ 0.999) — {len(exact)} pairs"):
             if exact:
                 for m in exact:
@@ -315,21 +302,21 @@ def main():
         d1, d2, d3 = st.columns(3)
         with d1:
             st.download_button(
-                label="📄 PDF Report",
+                label="PDF Report",
                 data=pdf_report,
                 file_name=f"comparison_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf",
                 mime="application/pdf"
             )
         with d2:
             st.download_button(
-                label="📄 TXT Report",
+                label="TXT Report",
                 data=txt_report,
                 file_name=f"comparison_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt",
                 mime="text/plain"
             )
         with d3:
             st.download_button(
-                label="📊 JSON Report",
+                label="JSON Report",
                 data=json_report,
                 file_name=f"comparison_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
                 mime="application/json"
