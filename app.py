@@ -39,10 +39,10 @@ def init_session_state():
 
 def main():
     st.markdown('<h1 class="main-header">Legal Document Comparator</h1>', unsafe_allow_html=True)
-    st.markdown("Compare two legal documents and identify differences in clauses")
+    st.markdown(' ')
+    st.markdown(' ')
     init_session_state()
 
-    # Sidebar
     with st.sidebar:
         st.header("Configuration")
         st.subheader("Extraction Settings")
@@ -269,7 +269,7 @@ def main():
                 unique_doc2_list = [u for u in unique if u['document'] == 'Document 2']
 
                 if unique_doc1_list:
-                    st.markdown("**📄 Document 1 Unique:**")
+                    st.markdown("**Document 1 Unique:**")
                     for u in unique_doc1_list:
                         st.markdown(f"""
                             <div class="unique-box">
@@ -279,7 +279,7 @@ def main():
                         """, unsafe_allow_html=True)
 
                 if unique_doc2_list:
-                    st.markdown("**📄 Document 2 Unique:**")
+                    st.markdown("**Document 2 Unique:**")
                     for u in unique_doc2_list:
                         st.markdown(f"""
                             <div class="unique-box">
@@ -293,10 +293,10 @@ def main():
             else:
                 st.info("All clauses are matched (no unique clauses).")
 
-        # ---- Download reports ----
-        st.subheader("📥 Download Reports")
+
+        st.subheader("Download Reports")
         txt_report = format_report(results)
-        json_report = save_report(results)  # returns JSON string
+        json_report = save_report(results)
         pdf_report = generate_pdf_report(results, doc1_clauses, doc2_clauses)
 
         d1, d2, d3 = st.columns(3)
@@ -322,21 +322,8 @@ def main():
                 mime="application/json"
             )
 
-        # ---- Processing details ----
-        with st.expander("🔧 Processing Details"):
-            st.json({
-                'extraction': 'Text-block (\\n\\n split)',
-                'min_len': min_len,
-                'merge_len': merge_len,
-                'sim_threshold': sim_threshold,
-                'high_sim_threshold': 0.85,
-                'processing_time': f"{results['processing_time']:.2f}s",
-                'llm_matches': results.get('llm_matches', 0),
-                'high_sim_matches': results.get('high_sim_matches', 0)
-            })
 
 if __name__ == "__main__":
-    # Check Ollama
     try:
         import ollama
         ollama.list()
